@@ -10,7 +10,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-# قراءة المفتاح تلقائياً من ملف .env
 load_dotenv()
 
 st.set_page_config(
@@ -19,7 +18,6 @@ st.set_page_config(
     layout="centered",
 )
 
-# ============ التصميم (RTL + ألوان + خط عربي) ============
 st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -27,14 +25,10 @@ st.markdown("""
         font-family: 'Tajawal', sans-serif;
     }
 
-    /* نطبق RTL على بطاقة المحتوى فقط، وليس على هيكل التطبيق الخارجي
-       (تطبيقه على .stApp كان يزيح موضع الـ scrollbar) */
     .block-container {
         direction: rtl;
     }
 
-    /* تطبيق المحاذاة لليمين على عناصر النص فقط، بدون المساس بحاويات التخطيط
-       (زي الشريط الجانبي) حتى لا ينكسر عرضها */
     .stApp p,
     .stApp span,
     .stApp label,
@@ -47,18 +41,15 @@ st.markdown("""
         text-align: right;
     }
 
-    /* الشريط الجانبي: محاذاة نص لليمين فقط، بدون تغيير اتجاه الصندوق نفسه
-       (تغيير الـ direction على الحاوية كان يكسر حساب عرضها) */
+    
     [data-testid="stSidebar"] * {
         text-align: right;
     }
 
-    /* خلفية متدرجة للصفحة كلها */
     .stApp {
         background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 45%, #7c3aed 100%);
     }
 
-    /* البطاقة الرئيسية اللي فيها المحتوى */
     .block-container {
         background: rgba(255, 255, 255, 0.97);
         border-radius: 22px;
@@ -67,7 +58,6 @@ st.markdown("""
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
     }
 
-    /* العنوان */
     h1 {
         background: linear-gradient(90deg, #7c3aed, #ec4899);
         -webkit-background-clip: text;
@@ -77,7 +67,6 @@ st.markdown("""
         margin-bottom: 0.3rem !important;
     }
 
-    /* عنوان فرعي مساعد */
     .subtitle {
         text-align: center;
         color: #6b7280;
@@ -85,7 +74,6 @@ st.markdown("""
         margin-bottom: 1.8rem;
     }
 
-    /* صندوق رفع الملف */
     [data-testid="stFileUploaderDropzone"] {
         background: linear-gradient(135deg, #f5f3ff, #fdf2f8);
         border: 2px dashed #a78bfa;
@@ -93,12 +81,10 @@ st.markdown("""
         padding: 1rem;
     }
 
-    /* رسائل النجاح */
     [data-testid="stAlertContainer"] {
         border-radius: 14px !important;
     }
 
-    /* صندوق الإجابة */
     .answer-box {
         background: linear-gradient(135deg, #ede9fe, #fce7f3);
         border-right: 5px solid #7c3aed;
@@ -109,7 +95,6 @@ st.markdown("""
         color: #1f2937;
     }
 
-    /* شارة اسم الملف المصدر */
     .source-badge {
         display: inline-block;
         background: #ede9fe;
@@ -130,12 +115,10 @@ st.markdown("""
 st.title("📄 مساعدك الذكي لملفات PDF")
 st.markdown('<p class="subtitle">ارفع ملفاتك واسأل عنها، وسيجيبك بالاعتماد على محتواها فقط</p>', unsafe_allow_html=True)
 
-# التحقق من وجود المفتاح
-# جلب المفتاح سواء من .env محلياً أو من Secrets سحابياً
 try:
     secret_key = st.secrets.get("GOOGLE_API_KEY")
 except Exception:
-    # لا يوجد ملف secrets.toml محلياً (طبيعي عند التشغيل على جهازك) — نتجاهل ونكمل
+    
     secret_key = None
 
 api_key = os.getenv("GOOGLE_API_KEY") or secret_key
@@ -147,21 +130,18 @@ if not api_key:
     )
     st.stop()
 
-# تثبيته ليصبح متاحاً لكل مكتبات بايثون (بما فيها langchain_google_genai)
+
 os.environ["GOOGLE_API_KEY"] = api_key
 
-# ============ حالة الجلسة ============
 if "messages" not in st.session_state:
-    st.session_state.messages = []  # كل عنصر: {"role": "user"/"assistant", "content": str, "sources": list}
+    st.session_state.messages = []  
 if "rag_chain" not in st.session_state:
     st.session_state.rag_chain = None
 if "processed_files_key" not in st.session_state:
     st.session_state.processed_files_key = None
 
-# رفع أكثر من ملف مباشرة
 uploaded_files = st.file_uploader("📎 ارفع ملف أو أكثر (PDF)", type="pdf", accept_multiple_files=True)
 
-# مفتاح فريد يمثل مجموعة الملفات الحالية (اسم + حجم)، لمعرفة هل تغيّرت الملفات أو لا
 current_files_key = None
 if uploaded_files:
     current_files_key = tuple(sorted((f.name, f.size) for f in uploaded_files))
@@ -178,7 +158,6 @@ if uploaded_files and current_files_key != st.session_state.processed_files_key:
             loader = PyPDFLoader(temp_path)
             file_docs = loader.load()
 
-            # إضافة اسم الملف كمعلومة إضافية لكل جزء (يساعد بمعرفة مصدر الإجابة)
             for doc in file_docs:
                 doc.metadata["source_file"] = uploaded_file.name
 
@@ -187,16 +166,13 @@ if uploaded_files and current_files_key != st.session_state.processed_files_key:
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
         splits = text_splitter.split_documents(all_docs)
 
-        # موديل متعدد اللغات: يسمح بالبحث بالعربي داخل مستند مكتوب بالإنجليزي (أو العكس)
         embeddings = FastEmbedEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
-        # كوليكشن جديد كل مرة، لضمان عدم اختلاط بيانات ملفات سابقة برفعة جديدة
         vectorstore = Chroma.from_documents(
             documents=splits,
             embedding=embeddings,
             collection_name=f"session_{uuid.uuid4().hex}",
         )
-        # نجلب كل القطع إذا كان عددها قليل (ملفات صغيرة)، وإلا نكتفي بأفضل 8
         k = min(len(splits), 8)
         retriever = vectorstore.as_retriever(search_kwargs={"k": k})
 
@@ -214,20 +190,18 @@ if uploaded_files and current_files_key != st.session_state.processed_files_key:
         def format_docs(documents):
             return "\n\n".join(doc.page_content for doc in documents)
 
-        # نخزن الـ retriever والـ prompt والـ llm منفصلين عشان نقدر نستخرج أسماء الملفات المصدر أيضاً
         st.session_state.retriever = retriever
         st.session_state.prompt = prompt
         st.session_state.llm = llm
         st.session_state.format_docs = format_docs
         st.session_state.processed_files_key = current_files_key
-        st.session_state.messages = []  # نفضي المحادثة القديمة عند رفع ملفات جديدة
+        st.session_state.messages = []  
 
     st.success(f"✅ تم تجهيز {len(uploaded_files)} ملف بنجاح! يمكنك البدء بطرح الأسئلة.")
 
 elif uploaded_files:
     st.success(f"✅ الملفات ({len(uploaded_files)}) جاهزة. يمكنك متابعة الأسئلة.")
 
-# ============ حفظ واستيراد المحادثة ============
 import json
 from datetime import datetime
 
@@ -235,7 +209,7 @@ with st.sidebar:
     st.markdown("### 💾 المحادثة")
 
     if st.session_state.messages:
-        # نسخة نصية سهلة القراءة
+
         lines = []
         for m in st.session_state.messages:
             role_label = "أنت" if m["role"] == "user" else "المساعد"
@@ -252,7 +226,6 @@ with st.sidebar:
             mime="text/plain",
         )
 
-        # نسخة JSON تحفظ البيانات كاملة (تصلح لاستيرادها لاحقاً وعرضها)
         json_export = json.dumps(st.session_state.messages, ensure_ascii=False, indent=2)
         st.download_button(
             "⬇️ تحميل كملف بيانات (.json)",
@@ -295,7 +268,6 @@ for msg in st.session_state.messages:
         else:
             st.write(msg["content"])
 
-# ============ إدخال سؤال جديد ============
 if st.session_state.processed_files_key is not None:
     user_query = st.chat_input("اكتب سؤالك حول محتوى الملفات...")
     if user_query:
@@ -316,7 +288,6 @@ if st.session_state.processed_files_key is not None:
                 chain = prompt | llm | StrOutputParser()
                 response = chain.invoke({"context": context_text, "question": user_query})
 
-                # أسماء الملفات المصدر بدون تكرار، بنفس ترتيب ظهورها
                 sources = list(dict.fromkeys(
                     d.metadata.get("source_file", "غير معروف") for d in retrieved_docs
                 ))
