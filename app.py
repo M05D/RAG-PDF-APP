@@ -146,7 +146,6 @@ current_files_key = None
 if uploaded_files:
     current_files_key = tuple(sorted((f.name, f.size) for f in uploaded_files))
 
-# نعالج الملفات فقط إذا كانت جديدة أو تغيّرت (بدل إعادة المعالجة بكل سؤال)
 if uploaded_files and current_files_key != st.session_state.processed_files_key:
     with st.spinner(f"جاري قراءة ومعالجة {len(uploaded_files)} ملف..."):
         all_docs = []
@@ -257,7 +256,6 @@ with st.sidebar:
         except Exception:
             st.error("تعذّر قراءة الملف، تأكد أنه ملف محادثة صالح تم تصديره من هذا التطبيق.")
 
-# ============ عرض تاريخ المحادثة ============
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant":
